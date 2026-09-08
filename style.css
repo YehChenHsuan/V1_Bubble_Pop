@@ -1,0 +1,905 @@
+/* =========================================================
+   style.css - ESL 視訊單字泡泡遊戲 核心現代美學樣式
+   特色：Glassmorphism 玻璃擬態、擬真彩虹肥皂泡、微動態與高對比
+   ========================================================= */
+
+:root {
+  --primary-color: #3b82f6;
+  --primary-glow: rgba(59, 130, 246, 0.5);
+  --accent-gold: #f59e0b;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shadow: 0 10px 30px 0 rgba(31, 38, 135, 0.2);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --bubble-size: 144px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  font-family: 'Outfit', 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f172a;
+  color: var(--text-main);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* 遊戲主舞台容器 */
+.game-stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+}
+
+/* 視訊視窗背景 (鏡像投射) */
+.webcam-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+#webcam-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* 關鍵：鏡像翻轉，確保使用者動作與畫面完全一致 */
+  filter: brightness(0.92) contrast(1.05);
+}
+
+.webcam-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.2) 20%, rgba(15, 23, 42, 0.55) 100%);
+  pointer-events: none;
+}
+
+/* 特效與粒子畫布 */
+#fx-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* =========================================================
+   頂部 HUD 狀態列 (愛心血條、計時器、分數)
+   ========================================================= */
+.top-hud {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 36px;
+  width: 100%;
+}
+
+.hud-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 5 顆愛心血條容器 */
+.hearts-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.heart-icon {
+  font-size: 28px;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.25s ease;
+  display: inline-block;
+}
+
+.heart-icon.active {
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+  animation: heartBeat 2s infinite ease-in-out;
+}
+
+.heart-icon.lost {
+  filter: grayscale(1) opacity(0.35);
+  transform: scale(0.85);
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* 計時器 Pill */
+.timer-pill {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: 2px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 1px;
+}
+
+.timer-pill.urgent {
+  background: rgba(254, 226, 226, 0.9);
+  color: #b91c1c;
+  border-color: #ef4444;
+  animation: urgentBlink 0.6s infinite alternate;
+}
+
+@keyframes urgentBlink {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+
+/* 分數與連擊 Badge */
+.score-badge {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.score-badge .star-icon {
+  color: #f59e0b;
+  font-size: 24px;
+  margin-right: 4px;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
+}
+
+.combo-badge {
+  background: linear-gradient(135deg, #f59e0b, #ec4899);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 16px;
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.4);
+  animation: pulseBadge 1s infinite alternate;
+}
+
+@keyframes pulseBadge {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
+.hud-btn {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #334155;
+  transition: all 0.2s ease;
+}
+
+.hud-btn:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================================
+   中央單字閃卡 (Flashcard Card)
+   ========================================================= */
+.center-card-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  pointer-events: none;
+}
+
+.center-card {
+  pointer-events: auto;
+  width: 250px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 0 35px rgba(59, 130, 246, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.center-card.flip-in {
+  animation: cardFlipIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes cardFlipIn {
+  0% { transform: scale(0.6) rotateY(70deg); opacity: 0; }
+  100% { transform: scale(1) rotateY(0); opacity: 1; }
+}
+
+.card-img-box {
+  width: 100%;
+  height: 125px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.card-img-box img {
+  max-width: 95%;
+  max-height: 95%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.card-meta {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.card-zh {
+  font-size: 18px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.card-audio-btn {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.card-audio-btn:hover {
+  transform: scale(1.1);
+}
+
+.card-audio-btn.pulse {
+  animation: audioPulse 0.4s ease;
+}
+
+@keyframes audioPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* =========================================================
+   6 顆單字泡泡 (Word Bubbles)
+   擬真彩虹反射高光、自然浮動、半透明玻璃
+   ========================================================= */
+.bubbles-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.word-bubble {
+  pointer-events: auto;
+  position: absolute;
+  width: var(--bubble-size);
+  height: var(--bubble-size);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+
+  /* 擬真肥皂泡材質漸層 */
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(255, 255, 255, 0.45) 15%,
+    rgba(147, 197, 253, 0.35) 50%,
+    rgba(216, 180, 254, 0.3) 75%,
+    rgba(96, 165, 250, 0.55) 100%
+  );
+  border: 2.5px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 
+    inset 0 0 25px rgba(255, 255, 255, 0.8),
+    inset -10px -10px 20px rgba(147, 197, 253, 0.5),
+    0 12px 32px rgba(15, 23, 42, 0.3),
+    0 0 24px rgba(147, 197, 253, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  animation: bubbleFloat 3.5s ease-in-out infinite alternate;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+}
+
+/* 6 個對應插槽精確定位 (統一 top/left 百分比，中心定位 translate(-50%, -50%)) */
+.slot-top {
+  top: 13%;
+  left: 50%;
+  animation-delay: 0s;
+}
+
+.slot-bottom {
+  top: 87%;
+  left: 50%;
+  animation-delay: 0.8s;
+}
+
+.slot-top-left {
+  top: 31%;
+  left: 16%;
+  animation-delay: 1.2s;
+}
+
+.slot-bottom-left {
+  top: 71%;
+  left: 16%;
+  animation-delay: 1.6s;
+}
+
+.slot-top-right {
+  top: 31%;
+  left: 84%;
+  animation-delay: 0.4s;
+}
+
+.slot-bottom-right {
+  top: 71%;
+  left: 84%;
+  animation-delay: 2.0s;
+}
+
+/* 泡泡反射高光 */
+.bubble-reflection {
+  position: absolute;
+  top: 14%;
+  left: 18%;
+  width: 32%;
+  height: 22%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  transform: rotate(-35deg);
+  filter: blur(1.5px);
+  pointer-events: none;
+}
+
+/* 泡泡英文文字內容 */
+.bubble-word-content {
+  z-index: 2;
+  text-align: center;
+  padding: 8px;
+}
+
+.bubble-en {
+  font-size: 33px;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  text-shadow: 
+    0 0 12px #ffffff,
+    0 0 4px #ffffff,
+    0 2px 10px rgba(255, 255, 255, 0.95),
+    0 1px 3px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.5px;
+}
+
+/* 泡泡外圍柔光 */
+.bubble-glow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+/* 原地呼吸輕動態（絕不向中央單字卡位移，消除誤觸） */
+@keyframes bubbleFloat {
+  0% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.035) rotate(1.2deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.985) rotate(-1.2deg);
+  }
+}
+
+/* 泡泡破裂動畫 */
+.word-bubble.popping {
+  animation: bubblePop 0.35s cubic-bezier(0.1, 0.9, 0.2, 1) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes bubblePop {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.7; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* 泡泡漸現動畫 (補充單字專用) */
+.word-bubble.bubble-spawn-in {
+  animation: bubbleSpawn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes bubbleSpawn {
+  0% { transform: scale(0); opacity: 0; }
+  80% { transform: scale(1.12); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.word-bubble.fade-out {
+  opacity: 0;
+  transform: scale(0.85);
+  transition: all 0.3s ease;
+}
+
+/* =========================================================
+   底部狀態提示 (Notice Banner)
+   ========================================================= */
+.bottom-bar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+}
+
+.status-notice {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  padding: 10px 28px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  box-shadow: var(--glass-shadow);
+  transition: all 0.25s ease;
+}
+
+.notice-success {
+  background: rgba(220, 252, 231, 0.9);
+  color: #166534;
+  border-color: #86efac;
+}
+
+.notice-error {
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+/* 答錯震動特效 */
+.shake-error {
+  animation: shakeScreen 0.4s ease;
+}
+
+@keyframes shakeScreen {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+/* =========================================================
+   模態視窗通用設計 (Modals: Start, Leaderboard, GameOver)
+   ========================================================= */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.glass-modal {
+  background: rgba(255, 255, 255, 0.94);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4), 0 0 35px rgba(59, 130, 246, 0.2);
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 36px;
+  text-align: center;
+  animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-header h2 {
+  font-size: 30px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, #1e40af, #4338ca);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.modal-subtitle {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+/* 設定區塊 */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 24px 0;
+  text-align: left;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.custom-select, .custom-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.custom-select:focus, .custom-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.chip-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.time-chip {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.time-chip:hover {
+  background: #cbd5e1;
+}
+
+.time-chip.active {
+  background: var(--primary-color);
+  color: #ffffff;
+  box-shadow: 0 4px 10px var(--primary-glow);
+}
+
+.time-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.time-input-wrap input {
+  width: 70px;
+  padding: 6px 10px;
+}
+
+.toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+}
+
+/* 按鈕風格 */
+.modal-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 14px 32px;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.45);
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 14px 28px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+  transform: translateY(-2px);
+}
+
+/* =========================================================
+   排行榜表格設計 (Leaderboard Table)
+   ========================================================= */
+.modal-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.lb-tab {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lb-tab.active {
+  background: var(--primary-color);
+  color: #ffffff;
+}
+
+.leaderboard-list {
+  max-height: 380px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 15px;
+}
+
+.lb-table th {
+  background: #e2e8f0;
+  padding: 12px 8px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.lb-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #edf2f7;
+  color: #1e293b;
+}
+
+.lb-table tr.top-rank {
+  background: rgba(254, 243, 199, 0.45);
+  font-weight: 700;
+}
+
+.lb-table .score-col {
+  color: #d97706;
+  font-weight: 800;
+}
+
+.lb-table .rank-col {
+  font-size: 18px;
+}
+
+.lb-empty {
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* =========================================================
+   遊戲結束統計面板 (Game Over Stats)
+   ========================================================= */
+.gameover-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.stat-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.stat-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.player-submit-box {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.player-submit-box input {
+  flex: 1;
+}
+
+/* =========================================================
+   響應式適配 (Responsive for Tablets & Laptops)
+   ========================================================= */
+@media (max-width: 900px) {
+  :root {
+    --bubble-size: 126px;
+  }
+
+  .center-card {
+    width: 220px;
+    height: 180px;
+  }
+
+  .card-img-box {
+    height: 110px;
+  }
+
+  .bubble-en {
+    font-size: 26px;
+  }
+
+  .top-hud {
+    padding: 12px 18px;
+  }
+
+  .heart-icon {
+    font-size: 22px;
+  }
+
+  .timer-pill {
+    font-size: 18px;
+    padding: 6px 16px;
+  }
+
+  .score-badge {
+    font-size: 18px;
+    padding: 6px 16px;
+  }
+}

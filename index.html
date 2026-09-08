@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ESL 視訊單字泡泡破破樂 (Page 15 Word Bubble Pop)</title>
+  <meta name="description" content="透過視訊鏡頭體感感測手勢，戳破單字泡泡學習 ESL 課本 Page 15 單字！">
+  <!-- Google Fonts: Outfit & Quicksand 現代友善字型 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- MediaPipe Hands CDN (支援 AI 深度指尖追蹤，若連線不順將自動降級至高幀率動態光流感應) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- 遊戲主舞台 -->
+  <main class="game-stage" id="game-stage">
+    <!-- 視訊攝影機鏡像背景層 -->
+    <div class="webcam-container">
+      <video id="webcam-video" autoplay playsinline muted></video>
+      <div class="webcam-overlay"></div>
+    </div>
+
+    <!-- 粒子特效層 (爆破、星塵光暈、手勢光軌) -->
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- 頂部 HUD 狀態列 -->
+    <header class="top-hud">
+      <!-- 左上角：5 顆愛心血條 -->
+      <div class="hud-group">
+        <div class="hearts-container" id="hearts-container" aria-label="生命值愛心血條"></div>
+      </div>
+
+      <!-- 中上方：遊戲計時器 -->
+      <div class="hud-group">
+        <div class="timer-pill" id="timer-display">⏱️ 01:00</div>
+      </div>
+
+      <!-- 右上角：星級分數與暫停 -->
+      <div class="hud-group">
+        <div class="score-badge" id="score-display">
+          <span class="star-icon">⭐</span> 分數: <b>0</b>
+        </div>
+        <div class="combo-badge" id="combo-display" style="display: none;">✦ 連擊 x2</div>
+        <button id="pause-btn" class="hud-btn" aria-label="暫停遊戲">⏸️ 暫停</button>
+        <button id="top-home-btn" class="hud-btn" aria-label="回到首頁" title="結束遊戲並回到首頁">🏠 首頁</button>
+      </div>
+    </header>
+
+    <!-- 正中央：單字圖片閃卡 (出題與發音) -->
+    <div class="center-card-wrapper">
+      <div class="center-card" id="center-card">
+        <div class="card-img-box">
+          <img id="card-image" src="" alt="題目圖片卡">
+        </div>
+        <div class="card-meta">
+          <span class="card-zh" id="card-word-zh"></span>
+          <button class="card-audio-btn" id="card-repeat-btn" title="點擊重聽單字真人發音">🔊</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 顆環繞單字泡泡容器 (由 JS 動態生成並補位) -->
+    <div class="bubbles-container" id="bubbles-container"></div>
+
+    <!-- 底部狀態提示列 -->
+    <footer class="bottom-bar">
+      <div class="status-notice" id="status-notice">揮動雙手戳破正確的單字泡泡！</div>
+    </footer>
+  </main>
+
+  <!-- ==================== 模態視窗 (Modals) ==================== -->
+
+  <!-- 1. 開始遊戲與模式設定視窗 -->
+  <div class="modal-backdrop" id="start-modal">
+    <div class="glass-modal">
+      <div class="modal-header">
+        <h2>🫧 單字泡泡破破樂</h2>
+        <p class="modal-subtitle">課本 Page 15 單字特輯 · 揮動雙手戳破單字泡泡！</p>
+      </div>
+
+      <div class="settings-section">
+        <!-- 模式選擇 -->
+        <div class="setting-item">
+          <label for="game-mode-select">🎮 挑戰模式</label>
+          <select id="game-mode-select" class="custom-select">
+            <option value="timed">⏱️ 限時挑戰模式（在時限內衝高分）</option>
+            <option value="endless">❤️ 無盡冒險模式（5 條命生存賽）</option>
+          </select>
+        </div>
+
+        <!-- 答錯時是否補換新泡泡設定 -->
+        <div class="setting-item">
+          <label for="wrong-bubble-behavior">🫧 答錯時泡泡機制</label>
+          <select id="wrong-bubble-behavior" class="custom-select">
+            <option value="replace">🔄 補上新單字泡泡（維持 6 顆，挑戰辨識）</option>
+            <option value="keep-empty">❌ 不補泡泡（錯誤泡泡直接消失，逐漸排除）</option>
+          </select>
+        </div>
+
+        <!-- 限時模式時間設定 -->
+        <div class="setting-item" id="time-select-group">
+          <label>⏳ 設定挑戰時間</label>
+          <div class="chip-group">
+            <button class="time-chip" data-time="30">30 秒</button>
+            <button class="time-chip active" data-time="60">60 秒</button>
+            <button class="time-chip" data-time="90">90 秒</button>
+            <button class="time-chip" data-time="120">120 秒</button>
+            <div class="time-input-wrap">
+              <input type="number" id="custom-time-input" class="custom-input" value="60" min="10" max="600" step="5">
+              <span>秒</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 設備與感應開關 -->
+        <div class="setting-item">
+          <label>⚙️ 遊戲與設備設定</label>
+          <div class="toggle-grid">
+            <label class="toggle-label">
+              <input type="checkbox" id="camera-toggle" checked>
+              <span>📷 啟用視訊鏡頭</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="mirror-toggle" checked>
+              <span>🪞 畫面鏡像翻轉</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="audio-toggle" checked>
+              <span>🔊 題目真人語音</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="bgm-toggle" checked>
+              <span>🎵 歡樂背景音樂</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="start-btn" class="btn-primary">🎮 開始冒險</button>
+        <button id="show-leaderboard-btn" class="btn-secondary">🏆 排行榜</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 排行榜視窗 -->
+  <div class="modal-backdrop" id="leaderboard-modal" hidden>
+    <div class="glass-modal" style="max-width: 680px;">
+      <div class="modal-header">
+        <h2>🏆 英勇冒險家排行榜</h2>
+        <p class="modal-subtitle">挑戰極限，留下你的輝煌戰績！</p>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="lb-tab active" data-tab="timed">⏱️ 限時挑戰榜</button>
+        <button class="lb-tab" data-tab="endless">❤️ 無盡冒險榜</button>
+      </div>
+
+      <div class="leaderboard-list" id="lb-list-content">
+        <!-- 表格由 JS 動態填入 -->
+      </div>
+
+      <div class="modal-actions">
+        <button id="close-leaderboard-btn" class="btn-primary">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 遊戲結束結算視窗 (Game Over & 輸入姓名) -->
+  <div class="modal-backdrop" id="gameover-modal" hidden>
+    <div class="glass-modal">
+      <div class="modal-header">
+        <h2>🎉 冒險結算</h2>
+        <p class="modal-subtitle" id="go-reason">遊戲結束！</p>
+      </div>
+
+      <div class="gameover-stats">
+        <div class="stat-box">
+          <span class="stat-label">⭐ 總得分</span>
+          <span class="stat-val" id="go-score" style="color: #d97706;">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">✦ 最高連擊</span>
+          <span class="stat-val" id="go-combo" style="color: #2563eb;">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">🎯 答對題數</span>
+          <span class="stat-val" id="go-correct">0 題</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">📊 正確率</span>
+          <span class="stat-val" id="go-accuracy">0%</span>
+        </div>
+        <div class="stat-box" style="grid-column: span 2;">
+          <span class="stat-label">⏱️ 總遊玩時間</span>
+          <span class="stat-val" id="go-time">0 秒</span>
+        </div>
+      </div>
+
+      <div class="player-submit-box">
+        <input type="text" id="player-name-input" class="custom-input" placeholder="輸入你的英勇姓名" maxlength="12" value="Player 1">
+        <button id="submit-score-btn" class="btn-primary">登錄成績 🏆</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="restart-btn" class="btn-secondary">再玩一次 ↻</button>
+        <button id="home-btn" class="btn-secondary">返回首頁 🏠</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 暫停視窗 -->
+  <div class="modal-backdrop" id="pause-modal" hidden>
+    <div class="glass-modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>⏸️ 遊戲暫停中</h2>
+        <p class="modal-subtitle">喝口水、甩甩手，準備好了再繼續！</p>
+      </div>
+      <div class="modal-actions">
+        <button id="resume-btn" class="btn-primary">繼續遊戲 ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 遊戲腳本 -->
+  <script src="sound.js"></script>
+  <script src="hand_tracker.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
