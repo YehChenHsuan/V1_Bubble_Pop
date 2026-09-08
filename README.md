@@ -2,6 +2,9 @@
 
 專為 **ESL 兒童美語 Page 15（Words to Remember - Word List）** 設計的體感體操網頁遊戲。透過視訊鏡頭偵測玩家手勢，在空中揮動雙手戳破飄浮的單字泡泡，兼顧動作趣味與聽力單字學習！
 
+🎮 **線上直接試玩網址（GitHub Pages）**：
+👉 **https://yehchenhsuan.github.io/V1_Bubble_Pop/**
+
 ---
 
 ## 遊戲特色
