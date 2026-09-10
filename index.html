@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ESL 視訊單字泡泡破破樂 (Page 15 Word Bubble Pop)</title>
-  <meta name="description" content="透過視訊鏡頭體感感測手勢，戳破單字泡泡學習 ESL 課本 Page 15 單字！">
+  <title>ESL 第一冊 視訊單字泡泡破破樂 (Page 15 Word Bubble Pop)</title>
+  <meta name="description" content="透過視訊鏡頭體感感測手勢，戳破單字泡泡學習 ESL ESL 第一冊 視訊單字泡泡破破樂 Page 15 單字！">
   <!-- Google Fonts: Outfit & Quicksand 現代友善字型 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <!-- MediaPipe Hands CDN (支援 AI 深度指尖追蹤，若連線不順將自動降級至高幀率動態光流感應) -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.1675466862/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <!-- MediaPipe Hands CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <!-- 遊戲主舞台 -->
@@ -57,7 +58,10 @@
         </div>
         <div class="card-meta">
           <span class="card-zh" id="card-word-zh"></span>
-          <button class="card-audio-btn" id="card-repeat-btn" title="點擊重聽單字真人發音">🔊</button>
+          <div class="card-audio-group">
+            <button class="card-audio-btn" id="card-repeat-btn" title="點擊重聽單字真人發音">🔊 英文</button>
+            <button class="card-audio-btn card-audio-btn-secondary" id="card-repeat-zh-btn" title="點擊聆聽中文語音">🗣️ 中文</button>
+          </div>
         </div>
       </div>
     </div>
@@ -77,11 +81,20 @@
   <div class="modal-backdrop" id="start-modal">
     <div class="glass-modal">
       <div class="modal-header">
-        <h2>🫧 單字泡泡破破樂</h2>
-        <p class="modal-subtitle">課本 Page 15 單字特輯 · 揮動雙手戳破單字泡泡！</p>
+        <h2>🫧 V1 視訊單字泡泡破破樂</h2>
+        <p class="modal-subtitle">Lesson 1 Page 15 Words to Remember · 揮動雙手戳破單字泡泡！</p>
       </div>
 
       <div class="settings-section">
+        <!-- 單字勾選設定項目 -->
+        <div class="setting-item">
+          <label>📝 練習單字範圍（自訂題庫）</label>
+          <div class="word-select-trigger-bar">
+            <div class="word-count-badge" id="start-modal-word-badge">已勾選全部 16 個單字</div>
+            <button type="button" id="open-word-select-btn" class="custom-word-btn">⚙️ 勾選練習單字</button>
+          </div>
+        </div>
+
         <!-- 模式選擇 -->
         <div class="setting-item">
           <label for="game-mode-select">🎮 挑戰模式</label>
@@ -121,111 +134,148 @@
           <div class="toggle-grid">
             <label class="toggle-label">
               <input type="checkbox" id="camera-toggle" checked>
-              <span>📷 啟用視訊鏡頭</span>
+              <span class="toggle-text">📷 啟動視訊體感鏡頭</span>
             </label>
             <label class="toggle-label">
               <input type="checkbox" id="mirror-toggle" checked>
-              <span>🪞 畫面鏡像翻轉</span>
+              <span class="toggle-text">🪞 鏡像翻轉鏡頭</span>
             </label>
             <label class="toggle-label">
               <input type="checkbox" id="audio-toggle" checked>
-              <span>🔊 題目真人語音</span>
+              <span class="toggle-text">🔊 單字語音與音效</span>
             </label>
             <label class="toggle-label">
               <input type="checkbox" id="bgm-toggle" checked>
-              <span>🎵 歡樂背景音樂</span>
+              <span class="toggle-text">🎵 輕柔背景音樂</span>
             </label>
           </div>
         </div>
       </div>
 
-      <div class="modal-actions">
-        <button id="start-btn" class="btn-primary">🎮 開始冒險</button>
-        <button id="show-leaderboard-btn" class="btn-secondary">🏆 排行榜</button>
+      <div class="modal-footer">
+        <button id="start-btn" class="primary-btn">🚀 開始遊戲！</button>
+        <button id="show-leaderboard-btn" class="secondary-btn">🏆 榮譽排行榜</button>
+      </div>
+
+      <div class="modal-tips">
+        💡 提示：若未開啟鏡頭或環境無鏡頭設備，可直接使用<b>「滑鼠點擊」</b>或<b>「手指觸碰螢幕」</b>戳破泡泡！
       </div>
     </div>
   </div>
 
-  <!-- 2. 排行榜視窗 -->
-  <div class="modal-backdrop" id="leaderboard-modal" hidden>
-    <div class="glass-modal" style="max-width: 680px;">
-      <div class="modal-header">
-        <h2>🏆 英勇冒險家排行榜</h2>
-        <p class="modal-subtitle">挑戰極限，留下你的輝煌戰績！</p>
-      </div>
-
-      <div class="modal-tabs">
-        <button class="lb-tab active" data-tab="timed">⏱️ 限時挑戰榜</button>
-        <button class="lb-tab" data-tab="endless">❤️ 無盡冒險榜</button>
-      </div>
-
-      <div class="leaderboard-list" id="lb-list-content">
-        <!-- 表格由 JS 動態填入 -->
-      </div>
-
-      <div class="modal-actions">
-        <button id="close-leaderboard-btn" class="btn-primary">關閉</button>
+  <!-- 2. 暫停遊戲視窗 -->
+  <div class="modal-backdrop" id="pause-modal" hidden>
+    <div class="glass-modal modal-sm">
+      <h2>⏸️ 遊戲暫停中</h2>
+      <p>放鬆一下雙手，隨時可以繼續挑戰！</p>
+      <div class="modal-footer modal-vertical">
+        <button id="resume-btn" class="primary-btn">▶️ 繼續遊戲</button>
+        <button id="home-btn" class="secondary-btn">🏠 回到主選單</button>
       </div>
     </div>
   </div>
 
-  <!-- 3. 遊戲結束結算視窗 (Game Over & 輸入姓名) -->
+  <!-- 3. 遊戲結算與登錄分數視窗 -->
   <div class="modal-backdrop" id="gameover-modal" hidden>
     <div class="glass-modal">
       <div class="modal-header">
-        <h2>🎉 冒險結算</h2>
-        <p class="modal-subtitle" id="go-reason">遊戲結束！</p>
+        <h2>🎉 挑戰完成！</h2>
+        <p id="gameover-reason" class="modal-subtitle">遊戲結束結算</p>
       </div>
 
-      <div class="gameover-stats">
-        <div class="stat-box">
-          <span class="stat-label">⭐ 總得分</span>
-          <span class="stat-val" id="go-score" style="color: #d97706;">0</span>
+      <div class="score-summary-card">
+        <div class="summary-item main-score">
+          <span class="label">最終得分</span>
+          <span class="val" id="final-score-val">0</span>
         </div>
-        <div class="stat-box">
-          <span class="stat-label">✦ 最高連擊</span>
-          <span class="stat-val" id="go-combo" style="color: #2563eb;">0</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">🎯 答對題數</span>
-          <span class="stat-val" id="go-correct">0 題</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">📊 正確率</span>
-          <span class="stat-val" id="go-accuracy">0%</span>
-        </div>
-        <div class="stat-box" style="grid-column: span 2;">
-          <span class="stat-label">⏱️ 總遊玩時間</span>
-          <span class="stat-val" id="go-time">0 秒</span>
+        <div class="summary-grid">
+          <div class="summary-sub-item">
+            <span class="label">🎯 答對題數</span>
+            <span class="val" id="final-correct-val">0</span>
+          </div>
+          <div class="summary-sub-item">
+            <span class="label">💥 答錯次數</span>
+            <span class="val" id="final-wrong-val">0</span>
+          </div>
+          <div class="summary-sub-item">
+            <span class="label">✦ 最高連擊</span>
+            <span class="val" id="final-combo-val">x0</span>
+          </div>
         </div>
       </div>
 
-      <div class="player-submit-box">
-        <input type="text" id="player-name-input" class="custom-input" placeholder="輸入你的英勇姓名" maxlength="12" value="Player 1">
-        <button id="submit-score-btn" class="btn-primary">登錄成績 🏆</button>
+      <!-- 登錄姓名 -->
+      <div class="leaderboard-input-section">
+        <label for="player-name-input">請輸入您的名字登錄排行榜：</label>
+        <div class="input-with-btn">
+          <input type="text" id="player-name-input" class="custom-input" placeholder="例：Alex / 小明" maxlength="12">
+          <button id="submit-score-btn" class="action-btn">登錄紀錄 🏅</button>
+        </div>
       </div>
 
-      <div class="modal-actions">
-        <button id="restart-btn" class="btn-secondary">再玩一次 ↻</button>
-        <button id="home-btn" class="btn-secondary">返回首頁 🏠</button>
+      <div class="modal-footer">
+        <button id="restart-btn" class="primary-btn">🔄 再玩一次！</button>
       </div>
     </div>
   </div>
 
-  <!-- 4. 暫停視窗 -->
-  <div class="modal-backdrop" id="pause-modal" hidden>
-    <div class="glass-modal" style="max-width: 400px;">
+  <!-- 4. 排行榜視窗 -->
+  <div class="modal-backdrop" id="leaderboard-modal" hidden>
+    <div class="glass-modal">
       <div class="modal-header">
-        <h2>⏸️ 遊戲暫停中</h2>
-        <p class="modal-subtitle">喝口水、甩甩手，準備好了再繼續！</p>
+        <h2>🏆 榮譽排行榜 (Top 15)</h2>
+        <div class="lb-tabs">
+          <button class="lb-tab active" data-tab="timed">⏱️ 限時模式</button>
+          <button class="lb-tab" data-tab="endless">❤️ 無盡模式</button>
+        </div>
       </div>
-      <div class="modal-actions">
-        <button id="resume-btn" class="btn-primary">繼續遊戲 ▶</button>
+
+      <ul class="leaderboard-list" id="leaderboard-list">
+        <!-- 由 JS 動態渲染排行 -->
+      </ul>
+
+      <div class="modal-footer">
+        <button id="close-leaderboard-btn" class="secondary-btn">關閉返回</button>
       </div>
     </div>
   </div>
 
-  <!-- 遊戲腳本 -->
+  <!-- 5. 勾選需練習單字視窗 (Word Select Modal) -->
+  <div class="modal-backdrop" id="word-select-modal" hidden>
+    <div class="glass-modal modal-lg">
+      <div class="modal-header">
+        <h2>📝 設定練習單字清單</h2>
+        <p class="modal-subtitle">勾選希望在遊戲中出現的單字（最少需勾選 6 個單字）</p>
+        <div class="word-select-summary-bar">
+          <div class="summary-count-wrap">
+            已勾選 <span id="modal-selected-count" class="count-highlight">0</span> / <span id="modal-total-count">0</span> 個單字
+          </div>
+          <div id="word-min-warn" class="min-warn-pill" style="display: none;">
+            ⚠️ 最少需勾選 6 個單字才能開始遊戲！
+          </div>
+        </div>
+        <div class="word-quick-actions">
+          <button type="button" id="select-all-words-btn" class="quick-act-btn">✅ 全選</button>
+          <button type="button" id="deselect-all-words-btn" class="quick-act-btn">❌ 全不選</button>
+          <button type="button" id="select-random-6-btn" class="quick-act-btn">🎲 隨機 6 個</button>
+          <button type="button" id="select-random-12-btn" class="quick-act-btn">🎲 隨機 12 個</button>
+        </div>
+      </div>
+
+      <div class="word-grid-scroll-area">
+        <div class="word-checkbox-grid" id="word-checkbox-grid">
+          <!-- 由 JS 動態生成單字卡 -->
+        </div>
+      </div>
+
+      <div class="modal-footer modal-footer-between">
+        <button type="button" id="save-word-select-btn" class="primary-btn">💾 儲存並套用</button>
+        <button type="button" id="close-word-select-btn" class="secondary-btn">取消返回</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入模組 JS -->
   <script src="sound.js"></script>
   <script src="hand_tracker.js"></script>
   <script src="game.js"></script>

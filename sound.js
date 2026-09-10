@@ -1,6 +1,6 @@
-/**
- * sound.js - ESL 視訊單字泡泡遊戲 音效與語音模組
- * 包含：教材真人發音播放、Web Audio 擬真泡泡爆破音、過關音樂與音效
+/*
+ * sound.js - ESL 視訊單字泡泡遊戲 音效與語音模組 (V2 專用)
+ * 包含：教材真人發音播放 (英/中)、Web Audio 擬真泡泡爆破音、答對答錯琶音、背景音樂
  */
 
 class SoundSystem {
@@ -13,7 +13,7 @@ class SoundSystem {
     this.audioCache = new Map();
   }
 
-  // 初始化 Web Audio Context（需在使用者互動後觸發）
+  // 初始化 Web Audio Context（需在使用者點擊或互動後觸發）
   initAudioContext() {
     if (!this.audioCtx) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -36,7 +36,7 @@ class SoundSystem {
     return this.isMuted;
   }
 
-  // 播放教材真人發音 MP3（若失敗則使用 Web Speech API 降級播放）
+  // 播放教材真人發音 MP3（支援空白檔名編碼與降級 TTS）
   playWordAudio(wordId, onEnded = null) {
     if (this.isMuted) {
       if (onEnded) setTimeout(onEnded, 300);
@@ -48,8 +48,10 @@ class SoundSystem {
       this.currentVoice.currentTime = 0;
     }
 
-    const audioPath = `V1_flashcards_audios/V1_${wordId}.mp3`;
-    const audio = new Audio(audioPath);
+    // 處理空白檔名如 "wake up" -> "V1_wake%20up.mp3"
+    const fileName = `V1_${wordId}.mp3`;
+    const audioPath = `V1_flashcards_audios/${fileName}`;
+    const audio = new Audio(encodeURI(audioPath));
     this.currentVoice = audio;
 
     audio.onended = () => {
@@ -57,12 +59,12 @@ class SoundSystem {
     };
 
     audio.onerror = () => {
-      // 嘗試父目錄路徑
-      const backupPath = `../V1_flashcards_audios/V1_${wordId}.mp3`;
-      const backupAudio = new Audio(backupPath);
+      // 嘗試備援父目錄路徑
+      const backupPath = `../V1_flashcards_audios/${fileName}`;
+      const backupAudio = new Audio(encodeURI(backupPath));
       backupAudio.onended = () => { if (onEnded) onEnded(); };
       backupAudio.onerror = () => {
-        console.warn(`無法載入語音檔案，改用語音合成 (TTS)`);
+        console.warn(`無法載入語音檔案 ${audioPath}，改用語音合成 (TTS)`);
         this.speakTTS(wordId, onEnded);
       };
       backupAudio.play().catch(() => this.speakTTS(wordId, onEnded));
@@ -71,6 +73,42 @@ class SoundSystem {
     audio.play().catch(err => {
       console.warn('音訊播放遭瀏覽器攔截，改用 TTS 或等待使用者互動:', err);
       this.speakTTS(wordId, onEnded);
+    });
+  }
+
+  // 播放中文真人說明語音
+  playZhAudio(wordId, onEnded = null) {
+    if (this.isMuted) {
+      if (onEnded) setTimeout(onEnded, 300);
+      return;
+    }
+
+    if (this.currentVoice) {
+      this.currentVoice.pause();
+      this.currentVoice.currentTime = 0;
+    }
+
+    const fileName = `V1_${wordId}_zh.mp3`;
+    const audioPath = `V1_flashcards_audios/${fileName}`;
+    const audio = new Audio(encodeURI(audioPath));
+    this.currentVoice = audio;
+
+    audio.onended = () => {
+      if (onEnded) onEnded();
+    };
+
+    audio.onerror = () => {
+      const backupPath = `../V1_flashcards_audios/${fileName}`;
+      const backupAudio = new Audio(encodeURI(backupPath));
+      backupAudio.onended = () => { if (onEnded) onEnded(); };
+      backupAudio.play().catch(() => {
+        if (onEnded) setTimeout(onEnded, 300);
+      });
+    };
+
+    audio.play().catch(err => {
+      console.warn('中文音訊播放失敗:', err);
+      if (onEnded) setTimeout(onEnded, 300);
     });
   }
 
@@ -200,7 +238,6 @@ class SoundSystem {
         gain.gain.setValueAtTime(0.18, noteStart);
         gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.18);
 
-        // 加上低通濾波讓音質更圓潤
         const filter = this.audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.value = 650;
@@ -253,58 +290,59 @@ class SoundSystem {
         });
       });
     } catch (e) {
-      console.warn('播放結算音效失敗:', e);
+      console.warn('播放結束音效失敗:', e);
     }
   }
 
-  // 輕快背景音樂 (Ambient Chords)
+  // 背景旋律 (可愛的 8-bit / 輕柔八音盒搖擺琶音)
   startBgm() {
     if (this.bgmPlaying || this.isMuted) return;
     this.initAudioContext();
     if (!this.audioCtx) return;
+
     this.bgmPlaying = true;
-
-    const progression = [
-      [261.63, 329.63, 392.00], // C
-      [246.94, 293.66, 392.00], // G
-      [220.00, 261.63, 329.63], // Am
-      [220.00, 261.63, 349.23]  // F
+    const melody = [
+      { note: 523.25, dur: 0.25 }, // C5
+      { note: 659.25, dur: 0.25 }, // E5
+      { note: 783.99, dur: 0.25 }, // G5
+      { note: 659.25, dur: 0.25 }, // E5
+      { note: 880.00, dur: 0.25 }, // A5
+      { note: 783.99, dur: 0.25 }, // G5
+      { note: 659.25, dur: 0.25 }, // E5
+      { note: 587.33, dur: 0.25 }  // D5
     ];
-    let step = 0;
 
-    const playNextBar = () => {
-      if (!this.bgmPlaying || this.isMuted) return;
-      try {
-        const chord = progression[step % progression.length];
-        const now = this.audioCtx.currentTime;
+    let noteIdx = 0;
+    const playNext = () => {
+      if (!this.bgmPlaying || this.isMuted || !this.audioCtx) return;
 
-        chord.forEach(freq => {
-          const osc = this.audioCtx.createOscillator();
-          const gain = this.audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq * 1.5, now);
+      const item = melody[noteIdx];
+      const now = this.audioCtx.currentTime;
 
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.035, now + 0.3);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
 
-          osc.connect(gain);
-          gain.connect(this.audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(item.note, now);
 
-          osc.start(now);
-          osc.stop(now + 2.3);
-        });
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.035, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + item.dur * 1.8);
 
-        step++;
-        this.bgmTimer = setTimeout(playNextBar, 2200);
-      } catch (e) {
-        // 忽略背景音錯誤
-      }
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + item.dur * 1.8);
+
+      noteIdx = (noteIdx + 1) % melody.length;
+      this.bgmTimer = setTimeout(playNext, item.dur * 1000);
     };
 
-    playNextBar();
+    playNext();
   }
 
+  // 停止背景音樂
   stopBgm() {
     this.bgmPlaying = false;
     if (this.bgmTimer) {
@@ -314,4 +352,5 @@ class SoundSystem {
   }
 }
 
+// 建立全域音效單例
 window.soundSystem = new SoundSystem();
