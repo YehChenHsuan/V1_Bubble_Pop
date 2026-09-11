@@ -112,24 +112,18 @@ class SoundSystem {
     });
   }
 
-  // 瀏覽器 Web Speech API 降級朗讀
+  // 徹底告別瀏覽器原生 TTS，優先回歸單字真人發音 MP3 播放
   speakTTS(text, onEnded = null) {
-    if (!('speechSynthesis' in window)) {
+    if (this.isMuted) {
       if (onEnded) setTimeout(onEnded, 300);
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    utterance.pitch = 1.1;
-    utterance.onend = () => {
-      if (onEnded) onEnded();
-    };
-    utterance.onerror = () => {
-      if (onEnded) onEnded();
-    };
-    window.speechSynthesis.speak(utterance);
+    const cleanWord = (text || '').trim();
+    if (cleanWord) {
+      this.playWordAudio(cleanWord, onEnded);
+    } else {
+      if (onEnded) setTimeout(onEnded, 300);
+    }
   }
 
   // 擬真泡泡爆破音效 (Web Audio API 合成波)
